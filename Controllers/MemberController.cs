@@ -8,7 +8,6 @@ namespace practiceApi.Controllers
     public class MemberController : ControllerBase
     {
         private readonly IConfiguration _configuration;
-        private readonly IDbConnection _dbConnection;
 
         public static List<Member> Members = new List<Member>();
 
@@ -64,16 +63,21 @@ namespace practiceApi.Controllers
         }
 
         [HttpGet("/api/members/{id}")]
-        public IActionResult GetById(int id)
+        public async Task<IActionResult> GetById(int id)
         {
             try
             {
-                var member = Members.FirstOrDefault(m => m.Id == id);
+                const string selectQuery = @"
+                                        select * from members where id = @id
+                                            ";
+                
+                var connectionString = _configuration.GetConnectionString("Default");
+                await using var connection = new NpgsqlConnection(connectionString);
+                var member = await connection.QuerySingleOrDefaultAsync<Member>(selectQuery, new { id });
                 if (member == null)
                 {
-                    return NotFound($"Member with ID {id} not found.");
+                    return NotFound("Member not found");
                 }
-
                 return Ok(member);
             }
             catch (Exception ex)
